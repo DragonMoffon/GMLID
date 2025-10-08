@@ -1,9 +1,12 @@
 from struct import pack
+from random import uniform
 
-from arcade import View
+from arcade import View, draw_point
 import arcade.gl as gl
 
 from GMLID.loading import get_glsl
+
+FRAME_SIZE = 200.0
 
 def get_geometry_byte_data(width: float, height: float):
     return pack(
@@ -45,7 +48,7 @@ class InverseRayImageView(View):
     def __init__(self):
         super().__init__()
 
-        self.lenses: list[LensMass] = [LensMass(0.0, 0.0, 1.0), LensMass(50.0, 50.0, 2.0)]
+        self.lenses: list[LensMass] = [LensMass(0.0, 0.0, 0.005), LensMass(1.0, 2.0, 0.001), LensMass(-2.0, -2.0, 0.005)]
         self.lenses_stale: bool = False
 
         self._program: gl.Program
@@ -70,7 +73,7 @@ class InverseRayImageView(View):
             [
                 gl.BufferDescription(
                     ctx.buffer(
-                        data=get_geometry_byte_data(2000.0, 2000.0)
+                        data=get_geometry_byte_data(FRAME_SIZE, FRAME_SIZE)
                     ),
                     "4f",
                     ["in_coordinate"],
@@ -95,8 +98,8 @@ class InverseRayImageView(View):
         self.lenses_stale = False
 
     def on_mouse_motion(self, x, y, dx, dy):
-        xp = (x / self.width - 0.5) * 2000.0
-        yp = (y / self.height - 0.5) * 2000.0
+        xp = (x / self.width - 0.5) * FRAME_SIZE
+        yp = (y / self.height - 0.5) * FRAME_SIZE
         self.lenses[0].position = xp, yp
         self.lenses_stale = True
 
@@ -110,4 +113,7 @@ class InverseRayImageView(View):
         self._lens_buffer.bind_to_storage_buffer()
         self._geometry.render(self._program)
 
-
+        for lens in self.lenses:
+            xp = (lens.x / FRAME_SIZE + 0.5) * self.width
+            yp = (lens.y / FRAME_SIZE + 0.5) * self.height
+            draw_point(xp, yp, (255, 0, 0), 4)

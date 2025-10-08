@@ -39,8 +39,11 @@ void main(){
     fs_uv = fs_uv - findDeflection(ray, lenses.lens[i]); //findDeflection(ray, lenses.lens[i]);
   }
 
-  fs_uv = fs_uv / 2000 + 0.5;
-  fs_ray = vec4(texture(sourceImage, fs_uv).rgb, 1.0);
+  float b = 1.0 - step(100.0, dot(fs_uv, fs_uv));
+  fs_ray = vec4(vec3(b), 1.0);
+
+  // fs_uv = fs_uv / 2000 + 0.5;
+  // fs_ray = vec4(texture(sourceImage, fs_uv).rgb, 1.0);
 
 
 }
