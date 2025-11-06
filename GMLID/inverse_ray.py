@@ -48,7 +48,7 @@ class InverseRayImageView(View):
     def __init__(self):
         super().__init__()
 
-        self.lenses: list[LensMass] = [LensMass(0.0, 0.0, 0.005), LensMass(1.0, 2.0, 0.001), LensMass(-2.0, -2.0, 0.005)]
+        self.lenses: list[LensMass] = [LensMass(0.0, 0.0, 0.01)]
         self.lenses_stale: bool = False
 
         self._program: gl.Program

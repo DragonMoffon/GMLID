@@ -40,6 +40,7 @@ void main(){
   }
 
   float b = 1.0 - step(100.0, dot(fs_uv, fs_uv));
+  // fs_ray = vec4(fs_uv / 400.0 + 0.5, 0.0, 1.0);
   fs_ray = vec4(vec3(b), 1.0);
 
   // fs_uv = fs_uv / 2000 + 0.5;
