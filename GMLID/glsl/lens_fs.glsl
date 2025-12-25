@@ -2,7 +2,7 @@
 
 struct lensData{
   float mass;
-  float reserved;
+  float einstein_sqr;
   vec2 pos;
 };
 
@@ -45,6 +45,4 @@ void main(){
 
   // fs_uv = fs_uv / 2000 + 0.5;
   // fs_ray = vec4(texture(sourceImage, fs_uv).rgb, 1.0);
-
-
 }

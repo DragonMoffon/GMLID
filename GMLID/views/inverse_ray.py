@@ -4,26 +4,9 @@ from random import uniform
 from arcade import View, draw_point
 import arcade.gl as gl
 
-from GMLID.loading import get_glsl
+from GMLID.util import get_glsl, get_symmetric_byte_data
 
 FRAME_SIZE = 200.0
-
-def get_geometry_byte_data(width: float, height: float):
-    return pack(
-        '12f',
-        -1.0,
-        -1.0,
-        -width/2,
-        -height/2,
-        -1.0,
-        3.0,
-        -width/2,
-        1.5*height,
-        3.0,
-        -1.0,
-        1.5*width,
-        -height/2
-    )
 
 class LensMass:
     
@@ -73,23 +56,18 @@ class InverseRayImageView(View):
             [
                 gl.BufferDescription(
                     ctx.buffer(
-                        data=get_geometry_byte_data(FRAME_SIZE, FRAME_SIZE)
+                        data=get_symmetric_byte_data(FRAME_SIZE, FRAME_SIZE)
                     ),
                     "4f",
                     ["in_coordinate"],
                 )
             ],
-            mode=ctx.TRIANGLES,
+            mode=ctx.TRIANGLE_STRIP,
         )
 
         self._lens_buffer = ctx.buffer(reserve=8+16*len(self.lenses))
         self.update_lens_buffer()
 
-        self._source_image = ctx.load_texture(
-            "GMLID/MonoCircleSource.png",
-            wrap_x=gl.CLAMP_TO_EDGE,
-            wrap_y=gl.CLAMP_TO_EDGE,
-        )
         self._initialised = True
 
     def update_lens_buffer(self):
@@ -109,7 +87,6 @@ class InverseRayImageView(View):
         if self.lenses_stale:
             self.update_lens_buffer()
         self.clear()
-        self._source_image.use()
         self._lens_buffer.bind_to_storage_buffer()
         self._geometry.render(self._program)
 
