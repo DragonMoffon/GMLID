@@ -1,5 +1,4 @@
 from pathlib import Path
-from re import L
 from typing import Any, Protocol
 
 from GMLID.lib.toml import dump as TOML_dump, load as TOML_load
