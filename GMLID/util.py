@@ -3,6 +3,7 @@ from importlib.resources import path
 from pathlib import Path
 
 from arcade import ArcadeContext
+import arcade.gl as gl
 
 import GMLID.glsl as glsl_module
 
