@@ -39,7 +39,7 @@ def get_symmetric_geometry(ctx: ArcadeContext, width: float, height: float):
     return ctx.geometry(
         [
             gl.BufferDescription(
-                ctx.buffer(data=get_symmetric_byte_data(width, height)), "4f", ["in_coordinates"]
+                ctx.buffer(data=get_symmetric_byte_data(width, height)), "4f", ["in_coordinate"]
             )
         ],
         mode=gl.TRIANGLE_STRIP,
