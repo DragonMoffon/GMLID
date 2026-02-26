@@ -49,7 +49,7 @@ class IRSDeflectionMap:
         # 2 32-bit ints + 4 32-bit floats per lens
         size = 8 + len(self._system.lenses) * 16
         self._lens_block = ctx.buffer(reserve=size)
-        self._stale = True
+        self._update_lens_block()
 
         # Only two lens components are needed, and each component in 32-bit so this
         # saves 64-bits per pixel. Even if it does add complexity to reading the texture
@@ -76,30 +76,27 @@ class IRSDeflectionMap:
         self.initialise()
         return self._lens_image
 
+    def _update_lens_block(self):
+        count = len(self._system.lenses)
+        self._lens_block.write(pack(f"2i {count * 4}f", count, 0, *self._system.pack_lenses()))
+
     def update_system(self, system: System):
         self.initialise()
         old = self._system
         self._system = system
 
-        if len(old.lenses) != len(system.lenses):
+        old_count = len(old.lenses)
+        count = len(system.lenses)
+
+        if old_count != count:
             # 2 32-bit ints + 4 32-bit floats per lens
             size = 8 + len(system.lenses) * 16
             self._lens_block.orphan(size)
 
-        self._stale = True
-
-    def update(self, force: bool = False):
-        self.initialise()
-        if self._stale and not force:
-            return
-
-        count = len(self._system.lenses)
-        self._lens_block.write(pack(f"2i {count * 4}f", count, 0, *self._system.pack_lenses()))
-        self._stale = False
+        self._update_lens_block()
 
     def generate(self):
         self.initialise()
-        self.update()
 
         self._ctx.disable(gl.BLEND)
         with self._render_frame.activate() as fbo:
