@@ -261,3 +261,35 @@ class IRSHistogram:
 
     def capture(self) -> Image.Image:
         return Image.fromarray((self.read() * 255.0).astype(np.uint8), "L").convert("RGB")
+
+
+class IRSCriticalMap:
+    """
+    The IRSCritical (Inverse Ray Shooting Critical [Curve] Map) produces a critical
+    curve map from the IRSHistogram for a specific system. It first generates a histogram
+    for the caustic curve, and then resamples that to create the critical curve map.
+    """
+
+    def __init__(self, histogram: IRSHistogram, lazy: bool = False) -> None:
+        self._histogram: IRSHistogram = histogram
+
+        self._critical_map: gl.Texture2D
+        self._render_frame: gl.Framebuffer
+        self._render_geometry: gl.Geometry
+        self._render_program: gl.Program
+
+        self._initialised: bool = False
+        if not lazy:
+            self._initialise()
+
+    def _initialise(self, force: bool = False):
+        if self._initialised and not force:
+            return
+
+        self._initialised = True
+
+        ctx = get_window().ctx
+
+        self._critical_map = ctx.texture(
+            (self._histogram.pixel_width, self._histogram.pixel_height), components=1, dtype="f4"
+        )
