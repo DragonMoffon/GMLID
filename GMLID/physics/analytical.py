@@ -82,8 +82,8 @@ def two_lens_critical_curves(system: System, count: int) -> tuple[tuple[float, f
     return ()
 
 
-def apply_lens_equation(system: System, locations: tuple[float, float]) -> tuple[float, float]:
+def apply_lens_equation(system: System, location: tuple[float, float]) -> tuple[float, float]:
     if len(system.lenses) != 2:
         raise ValueError("This amplification solution only works for two lenses")
 
-    return ()
+    return location
