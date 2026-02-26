@@ -23,7 +23,7 @@ vec2 find_deflection(vec2 ray, vec2 lens, float radius_sqr){
   return radius_sqr * relative / separation;
 }
 
-in vec2 vs_uv; // (x, y) location in source place
+in vec2 vs_uv; // (x, y) location in lens place
 
 out vec4 fs_ray; // (r, g) location in source plane, (b) reserved, (a) 1.0;
 
