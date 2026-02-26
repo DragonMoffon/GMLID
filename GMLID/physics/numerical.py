@@ -189,7 +189,7 @@ class IRSHistogram:
         # Evenly space x rays between 0.0 and 1.0 (inclusive)/
         # On th GPU these are used to find the deflection and final location
         # in the output histogram.
-        x = np.linspace(0.0, 1.0, self._ray_count)
+        x = np.linspace(0.0, 1.0, self._ray_count, dtype=np.float32)
         xy, yx = np.meshgrid(x, x)
         rays = np.asarray((xy, yx)).transpose((1, 2, 0))  # create 2d array of x,y positions
         self._ray_geometry = ctx.geometry(
@@ -203,8 +203,16 @@ class IRSHistogram:
         self._ray_frame = ctx.framebuffer(color_attachments=(self._histogram))
 
     @property
-    def histogram(self):
+    def histogram(self) -> gl.Texture2D:
         return self._histogram
+
+    @property
+    def pixel_width(self) -> int:
+        return self._output_size[0]
+
+    @property
+    def pixel_height(self) -> int:
+        return self._output_size[1]
 
     def update_system(self, system: System):
         self.initialise()
