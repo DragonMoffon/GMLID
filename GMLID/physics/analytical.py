@@ -4,10 +4,12 @@ Generically the amplification is equal to `1/|Det(J)|`. That is the amplificatio
 is inversely proportional to the determinant of the jacobian of the lens mapping.
 """
 
+import numpy as np
+
 from .system import System
 
 
-def get_amplification_at_position(system: System, location: tuple[float, float]):
+def get_amplification_at_position(system: System, location: tuple[float, float]) -> float:
     """
     Get the analytical amplification at a location for a one or two lens system.
 
@@ -25,7 +27,7 @@ def get_amplification_at_position(system: System, location: tuple[float, float])
     )
 
 
-def one_lens_amplificiation(system: System, location: tuple[float, float]):
+def one_lens_amplificiation(system: System, location: tuple[float, float]) -> float:
     if len(system.lenses) != 1:
         raise ValueError("This amplification solution only works for one lens")
 
@@ -45,6 +47,43 @@ def one_lens_amplificiation(system: System, location: tuple[float, float]):
     return (mu**2 + 2) / (mu * (mu**2 + 4) ** 0.5)
 
 
-def two_lens_amplification(system: System, location: tuple[float, float]):
+def two_lens_amplification(system: System, location: tuple[float, float]) -> float:
     if len(system.lenses) != 2:
         raise ValueError("This amplification solution only works for two lenses")
+
+    return 0.0
+
+
+def get_critical_curves(system: System, count: int) -> tuple[tuple[float, float], ...]:
+    """
+    get count samples of the analytical critical curves for a one or two lens system.
+    """
+    count = len(system.lenses)
+    if count == 1:
+        return one_lens_critical_curves(system, count)
+    elif count == 2:
+        return two_lens_critical_curves(system, count)
+    raise ValueError(
+        f"No analytical solution for a {count} lens system. Use GMLID.physics.numerical instead"
+    )
+
+
+def one_lens_critical_curves(system: System, count: int) -> tuple[tuple[float, float], ...]:
+    angles = np.linspace(0.0, 2.0 * np.pi, count, endpoint=False)
+    radius = system.einstein_angle
+
+    return tuple((radius * np.cos(angle), radius * np.sin(angle)) for angle in angles)
+
+
+def two_lens_critical_curves(system: System, count: int) -> tuple[tuple[float, float], ...]:
+    if len(system.lenses) != 1:
+        raise ValueError("This amplification solution only works for one lens")
+
+    return ()
+
+
+def apply_lens_equation(system: System, locations: tuple[float, float]) -> tuple[float, float]:
+    if len(system.lenses) != 2:
+        raise ValueError("This amplification solution only works for two lenses")
+
+    return ()
