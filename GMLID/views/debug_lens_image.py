@@ -18,7 +18,8 @@ class DebugLensImageView(View):
             mode=gl.TRIANGLE_STRIP,
         )
         self._image_program = ctx.load_program(
-            vertex_shader=get_glsl("unprojected_uv_vs"), fragment_shader=get_glsl("IRS_image_fs")
+            vertex_shader=get_glsl("UTIL_unprojected_uv_vs"),
+            fragment_shader=get_glsl("IRS_image_fs"),
         )
 
         self.system = LensSystem(4000, 8000)

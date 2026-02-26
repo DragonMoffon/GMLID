@@ -8,12 +8,12 @@ from GMLID.util import get_glsl, get_symmetric_byte_data
 
 FRAME_SIZE = 200.0
 
+
 class LensMass:
-    
     def __init__(self, x: float, y: float, m: float):
         self.x = x
         self.y = y
-        self.m = m 
+        self.m = m
 
     @property
     def position(self) -> tuple[float, float]:
@@ -26,6 +26,7 @@ class LensMass:
     @property
     def packed(self) -> tuple[float, float, float, float]:
         return self.m, 0.0, self.x, self.y
+
 
 class InverseRayImageView(View):
     def __init__(self):
@@ -47,17 +48,15 @@ class InverseRayImageView(View):
         ctx = self.window.ctx
 
         self._program = ctx.load_program(
-            vertex_shader=get_glsl("unprojected_uv_vs"),
+            vertex_shader=get_glsl("UTIL_unprojected_uv_vs"),
             fragment_shader=get_glsl("lens_fs"),
         )
-        self._program['plane'] = 10000.0, 10000.0, 20000.0, 0.0
+        self._program["plane"] = 10000.0, 10000.0, 20000.0, 0.0
 
         self._geometry = ctx.geometry(
             [
                 gl.BufferDescription(
-                    ctx.buffer(
-                        data=get_symmetric_byte_data(FRAME_SIZE, FRAME_SIZE)
-                    ),
+                    ctx.buffer(data=get_symmetric_byte_data(FRAME_SIZE, FRAME_SIZE)),
                     "4f",
                     ["in_coordinate"],
                 )
@@ -65,13 +64,18 @@ class InverseRayImageView(View):
             mode=ctx.TRIANGLE_STRIP,
         )
 
-        self._lens_buffer = ctx.buffer(reserve=8+16*len(self.lenses))
+        self._lens_buffer = ctx.buffer(reserve=8 + 16 * len(self.lenses))
         self.update_lens_buffer()
 
         self._initialised = True
 
     def update_lens_buffer(self):
-        byte_data = pack(f'2i{4*len(self.lenses)}f', len(self.lenses), 0, *sum((lens.packed for lens in self.lenses), start=()))
+        byte_data = pack(
+            f"2i{4 * len(self.lenses)}f",
+            len(self.lenses),
+            0,
+            *sum((lens.packed for lens in self.lenses), start=()),
+        )
         self._lens_buffer.write(byte_data)
         self.lenses_stale = False
 

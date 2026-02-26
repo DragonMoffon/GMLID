@@ -190,13 +190,13 @@ class LensImage:
         self._render_geometry = ctx.geometry(
             [
                 gl.BufferDescription(
-                    ctx.buffer(data=get_symmetric_byte_data(4.0, 4.0)), "4f", ["in_coordinate"]
+                    ctx.buffer(data=get_symmetric_byte_data(6.0, 6.0)), "4f", ["in_coordinate"]
                 )
             ],
             mode=gl.TRIANGLE_STRIP,
         )
         self._render_program = ctx.load_program(
-            vertex_shader=get_glsl("unprojected_uv_vs"),
+            vertex_shader=get_glsl("UTIL_unprojected_uv_vs"),
             fragment_shader=get_glsl("IRS_deflection_map_fs"),
         )
         self._render_frame = ctx.framebuffer(color_attachments=[self._lens_image])

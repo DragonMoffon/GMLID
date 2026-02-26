@@ -62,9 +62,9 @@ class IRSDeflectionMap:
             filter=(gl.LINEAR, gl.LINEAR),
         )
 
-        self._render_geometry = get_symmetric_geometry(ctx, 4.0, 4.0)
+        self._render_geometry = get_symmetric_geometry(ctx, 6.0, 6.0)
         self._render_program = ctx.load_program(
-            vertex_shader=get_glsl("unprojected_uv_vs"),
+            vertex_shader=get_glsl("UTIL_unprojected_uv_vs"),
             fragment_shader=get_glsl("IRS_deflection_map_fs"),
         )
         self._render_frame = ctx.framebuffer(color_attachments=[self._lens_image])
@@ -245,7 +245,7 @@ class IRSHistogram:
             for _ in range(iterations):
                 self._ray_program["seed"] = random()
                 self._ray_geometry.render(self._ray_program)
-                self._ctx.finish()  # TODO: test if this is necessary
+                # self._ctx.finish()  # TODO: test if this is necessary
 
         self._ctx.disable(gl.BLEND)
 
