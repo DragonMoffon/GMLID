@@ -65,7 +65,7 @@ class IRSDeflectionMap:
         self._render_geometry = get_symmetric_geometry(ctx, 4.0, 4.0)
         self._render_program = ctx.load_program(
             vertex_shader=get_glsl("unprojected_uv_vs"),
-            fragment_shader=get_glsl("lens_centered_IRS_fs"),
+            fragment_shader=get_glsl("IRS_deflection_map_fs"),
         )
         self._render_frame = ctx.framebuffer(color_attachments=[self._lens_image])
 
