@@ -17,5 +17,5 @@ void main(){
   // 1.0 is added to ensure the resulting origin is always positive before modulo.
   vec2 shifted = mod(origin + vec2(shift_x*2.0-1.0, shift_y*2.0-1.0)+1.0, 1.0);
   vec2 target = texture(deflection_map, shifted).rg;
-  gl_Position = vec4(target, 0.0, 1.0);
+  gl_Position = vec4(target*0.5, 0.0, 1.0);
 }
