@@ -1,5 +1,6 @@
 from struct import pack
 from random import random
+from time import sleep
 
 from PIL import Image
 import numpy as np
@@ -151,12 +152,14 @@ class IRSHistogram:
         count: int,
         output_size: tuple[int, int],
         lens_size: tuple[int, int] | None = None,
+        delay: float | None = None,
         lazy: bool = False,
     ) -> None:
         self._system: System = system
         self._output_size: tuple[int, int] = output_size
         self._lens_size: tuple[int, int] = lens_size if lens_size is not None else output_size
         self._ray_count: int = count
+        self._delay: float | None = delay
 
         self._ctx: ArcadeContext
 
@@ -245,7 +248,10 @@ class IRSHistogram:
             for _ in range(iterations):
                 self._ray_program["seed"] = random()
                 self._ray_geometry.render(self._ray_program)
-                # self._ctx.finish()  # TODO: test if this is necessary
+                if self._delay is None:
+                    self._ctx.finish()
+                elif self._delay:
+                    sleep(self._delay)
 
         self._ctx.disable(gl.BLEND)
 
