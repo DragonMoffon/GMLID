@@ -1,9 +1,3 @@
-"""
-The Amplification of a lens system in analytical for one and two lens systems.
-Generically the amplification is equal to `1/|Det(J)|`. That is the amplification
-is inversely proportional to the determinant of the jacobian of the lens mapping.
-"""
-
 import numpy as np
 
 from .system import System
@@ -54,36 +48,99 @@ def two_lens_amplification(system: System, location: tuple[float, float]) -> flo
     return 0.0
 
 
-def get_critical_curves(system: System, count: int) -> tuple[tuple[float, float], ...]:
+def get_critical_curves(system: System, count: int) -> np.ndarray:
     """
     get count samples of the analytical critical curves for a one or two lens system.
+    The returned array is in fractions of einstein angle.
     """
-    count = len(system.lenses)
-    if count == 1:
+    lens_count = len(system.lenses)
+    if lens_count == 1:
         return one_lens_critical_curves(system, count)
-    elif count == 2:
+    elif lens_count == 2:
         return two_lens_critical_curves(system, count)
     raise ValueError(
-        f"No analytical solution for a {count} lens system. Use GMLID.physics.numerical instead"
+        f"No analytical solution for a {lens_count} lens system. Use GMLID.physics.numerical instead"
     )
 
 
-def one_lens_critical_curves(system: System, count: int) -> tuple[tuple[float, float], ...]:
+def one_lens_critical_curves(system: System, count: int) -> np.ndarray:
     angles = np.linspace(0.0, 2.0 * np.pi, count, endpoint=False)
-    radius = system.einstein_angle
-
-    return tuple((radius * np.cos(angle), radius * np.sin(angle)) for angle in angles)
+    return np.asarray((np.cos(angles), np.sin(angles))).transpose(1, 0)
 
 
-def two_lens_critical_curves(system: System, count: int) -> tuple[tuple[float, float], ...]:
-    if len(system.lenses) != 1:
-        raise ValueError("This amplification solution only works for one lens")
-
-    return ()
-
-
-def apply_lens_equation(system: System, location: tuple[float, float]) -> tuple[float, float]:
+def two_lens_critical_curves(system: System, count: int) -> np.ndarray:
     if len(system.lenses) != 2:
         raise ValueError("This amplification solution only works for two lenses")
 
-    return location
+    l1, l2 = system.lenses
+
+    # normalise masses
+    m1 = l1.m / system.mass
+    m2 = l2.m / system.mass
+
+    # convert to complex numbers
+    p1 = l1.x + l1.y * 1j
+    p2 = l2.x + l2.y * 1j
+
+    # normalise positions
+    z1 = (p1 - p2) * m1 / system.lens_radius
+    z2 = (p2 - p1) * m2 / system.lens_radius
+
+    # calculate center of mass
+    cx = (l2.x - l1.x) / system.lens_radius * (1 - 2 * m1)
+    cy = (l2.y - l1.y) / system.lens_radius * (1 - 2 * m1)
+
+    # generate angles for calculations
+    phi = np.linspace(0.0j, 2j * np.pi, count)
+
+    # calculate coefficients of quartic
+    c1 = np.exp(phi)
+    c2 = -c1 * (2 * z2 + 2 * z1)
+    c3 = c1 * (z2 * z2 + 4 * z1 * z2 + z1 * z1) - 1
+    c4 = -c1 * (2 * z1 * z2 * z2 + 2 * z2 * z1 * z1)
+    c5 = c1 * z1 * z1 * z2 * z2 + z1 * z2
+
+    # stack coefficients for iteration
+    coefficients = np.stack((c1, c2, c3, c4, c5), axis=-1)
+
+    # pre-create roots array
+    roots = np.zeros((count, 4), np.complex128)
+
+    # compute roots
+    for idx in range(count):
+        roots[idx] = np.roots(coefficients[idx])
+
+    # collect all non-zero roots
+    roots = roots.flatten()
+    roots = roots[roots != 0.0j]
+
+    # convert back into 2D positions and adjust by center of mass
+    critical_points = np.asarray((np.real(roots) - cx, np.imag(roots) - cy)).transpose(1, 0)
+    return critical_points
+
+
+def apply_lens_equation(system: System, locations: np.ndarray, use_com: bool = True) -> np.ndarray:
+    c_x = system.com_x if use_com else system.lenses[0].x
+    c_y = system.com_y if use_com else system.lenses[0].y
+
+    Dl = system.lens_distance
+    Ds = system.source_distance
+
+    M = system.mass
+
+    Rl = system.lens_radius
+
+    results = np.copy(locations)
+    for lens in system.lenses:
+        # Get lens positions relative to com and normalised
+        pos = (lens.x - c_x) / Rl, (lens.y - c_y) / Rl
+        # Get the mass fraction of the lens
+        fraction = lens.m / M
+
+        # find the difference and compute lens diflection
+        diff = locations - pos
+        sep = np.vecdot(diff, diff).reshape((locations.shape[0], -1))
+
+        results = results - fraction * diff / sep
+
+    return results
