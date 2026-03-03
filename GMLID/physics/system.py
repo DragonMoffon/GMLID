@@ -40,7 +40,6 @@ class System(NamedTuple):
         lens_distance: float,
         source_distance: float,
         lenses: Iterable[Lens],
-        use_max_mass: bool = True,
     ) -> Self:
         """
         Create a lens system, and precalculate values required in calculations.
@@ -67,13 +66,9 @@ class System(NamedTuple):
         com_x /= mass
         com_y /= mass
 
-        # * The Einstein mass can either be the systems total mass or the max mass
-        # * generally the max mass is ~100% of the system in which case the difference is negligible
-        einstein_mass = max(lens.m for lens in lenses) if use_max_mass else mass
-
         # * Calculation of the Einstein angle is differed to GMLID.util as it optimises
         # * for floating point imprecision.
-        einstein_angle = calculate_einstein_angle(einstein_mass, lens_distance, source_distance)
+        einstein_angle = calculate_einstein_angle(mass, lens_distance, source_distance)
         lens_radius = pc_to_au * (lens_distance * tan(einstein_angle))
         source_radius = pc_to_au * (source_distance * tan(einstein_angle))
 
@@ -89,13 +84,13 @@ class System(NamedTuple):
             source_radius,
         )
 
-    def pack_lenses(self, use_com: bool = True) -> Generator[float, None, None]:
+    def pack_lenses(self) -> Generator[float, None, None]:
         # ! This assume the first lens is the largest.
         # It does not actually impact the maths as this is just a translation,
         # but it may look wrong if it isn't true. Especially as the system's
         # Einstein Radius is based on the greatest mass.
-        c_x = self.com_x if use_com else self.lenses[0].x
-        c_y = self.com_y if use_com else self.lenses[0].y
+        c_x = self.com_x
+        c_y = self.com_y
 
         Dl = self.lens_distance
         Ds = self.source_distance
@@ -108,6 +103,7 @@ class System(NamedTuple):
             yield lens.m
             # * The einstein radius is squared on the CPU as it saves of cycles on the
             # * GPU. This also uses the small angle approximation.
-            yield (calculate_einstein_angle(lens.m, Dl, Ds) / Ae) ** 2.0
+            # yield (calculate_einstein_angle(lens.m, Dl, Ds) / Ae) ** 2.0
+            yield (lens.m / self.mass)
             yield (lens.x - c_x) / Rl
             yield (lens.y - c_y) / Rl
