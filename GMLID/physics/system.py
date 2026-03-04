@@ -1,9 +1,11 @@
 """
 The lens system that causes the light to bend.
 
-By convention the lens masses are stored such that the mass sum is equal to 1.
-Additionally in the use cases GMLID was built for, most of the mass is found in the
-primary star so the mass is approximately one, and so is the einstein radius.
+It is stored as a representation of the actual system, that is masses are
+stored in solar masses, and distances are in Au and Parsecs.
+
+The Packed data sent to the GPU is instead fractional based on the
+mass fraction and Einstein angle.
 """
 
 from typing import Generator, Iterable, NamedTuple, Self
@@ -85,25 +87,15 @@ class System(NamedTuple):
         )
 
     def pack_lenses(self) -> Generator[float, None, None]:
-        # ! This assume the first lens is the largest.
-        # It does not actually impact the maths as this is just a translation,
-        # but it may look wrong if it isn't true. Especially as the system's
-        # Einstein Radius is based on the greatest mass.
         c_x = self.com_x
         c_y = self.com_y
 
-        Dl = self.lens_distance
-        Ds = self.source_distance
-
-        Ae = self.einstein_angle
+        M = self.mass
 
         Rl = self.lens_radius
 
         for lens in self.lenses:
-            yield lens.m
-            # * The einstein radius is squared on the CPU as it saves of cycles on the
-            # * GPU. This also uses the small angle approximation.
-            # yield (calculate_einstein_angle(lens.m, Dl, Ds) / Ae) ** 2.0
-            yield (lens.m / self.mass)
+            yield lens.m  # The mass is unneccisary, but due to byte alignment it is still reserved
+            yield (lens.m / M)
             yield (lens.x - c_x) / Rl
             yield (lens.y - c_y) / Rl
