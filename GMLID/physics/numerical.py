@@ -7,7 +7,7 @@ import numpy as np
 from arcade import get_window, ArcadeContext
 import arcade.gl as gl
 
-from GMLID.util import get_glsl, get_symmetric_geometry
+from GMLID.util import get_fullscreen_geometry, get_glsl, get_symmetric_geometry
 
 from .system import System
 
@@ -108,7 +108,7 @@ class IRSDeflectionMap:
     def read(self) -> np.ndarray:
         data = self._lens_image.read()
         w, h = self._size
-        return np.frombuffer(data, dtype=np.float32, count=w * h * 2).reshape((w, h, 2))
+        return np.frombuffer(data, dtype=np.float32, count=w * h * 2).reshape((w, h, 2))[::-1, :]
 
     def capture(
         self, distance_range: float = 2.0, clipped: bool = True, blue_value: float = 127
@@ -131,15 +131,14 @@ class IRSHistogram:
     small (~1 million) number of rays are shot towards the source plane. For each
     location (in eistein angles) the number of rays that land is stored. when
     the texture is then copied to the CPU from the GPU the pixels are transformed
-    to be as a fraction of the maximum number of rays.
+    to be as a fraction of the maximum number of counted rays.
 
-    To generate the image a number of iterations can be specified, or to do the
-    iteration over time a single iteration can be requested.
+    To generate the image a number of iterations can be specified, or a single
+    iteration can be called to generate the histogram over time.
 
     When properties of the LensSystem change the histogram has to be flushed.
     This is an expensive operation so avoid doing it more than necessary.
 
-    # TODO: add on-fly calculation mode
     There are two methods for calculating where in the source plane the image lands.
     Firstly a "deflection map" can be generated which computes the deflection at set
     angles. This is then interpolated for interim positions. The second is to compute
@@ -163,7 +162,6 @@ class IRSHistogram:
 
         self._ctx: ArcadeContext
 
-        # TODO: add on-fly calculation mode
         self._deflection_map: IRSDeflectionMap
         self._histogram: gl.Texture2D
 
@@ -261,7 +259,7 @@ class IRSHistogram:
     def read(self) -> np.ndarray:
         data = self._histogram.read()
         w, h = self._output_size
-        array = np.frombuffer(data, dtype=np.float32, count=w * h).reshape((w, h))
+        array = np.frombuffer(data, dtype=np.float32, count=w * h).reshape((w, h))[::-1, :]
         cap = np.max(array)
         return array / cap
 
@@ -292,10 +290,42 @@ class IRSCriticalMap:
         if self._initialised and not force:
             return
 
-        self._initialised = True
-
         ctx = get_window().ctx
 
         self._critical_map = ctx.texture(
             (self._histogram.pixel_width, self._histogram.pixel_height), components=1, dtype="f4"
         )
+
+        self._render_frame = ctx.framebuffer(color_attachments=self._critical_map)
+        self._render_geometry = get_fullscreen_geometry(ctx)
+        self._render_program = ctx.load_program(
+            vertex_shader=get_glsl("UTIL_unprojected_uv_vs"),
+            fragment_shader=get_glsl("IRS_critical_fs"),
+        )
+        self._render_program["deflectionMap"] = 0
+        self._render_program["causticMap"] = 1
+
+        self._initialised = True
+
+    @property
+    def critical_map(self) -> gl.Texture2D:
+        return self._critical_map
+
+    def generate(self):
+        self._initialise()
+        with self._render_frame.activate() as fbo:
+            fbo.clear()
+            # TODO: handle non-deflection map mode
+            self._histogram._deflection_map.deflection_map.use(0)
+            self._histogram.histogram.use(1)
+            self._render_geometry.render(self._render_program)
+
+    def read(self) -> np.ndarray:
+        data = self._critical_map.read()
+        w, h = self._critical_map.size
+        array = np.frombuffer(data, dtype=np.float32, count=w * h).reshape((w, h))[::-1]
+        cap = np.max(array)
+        return array / cap
+
+    def capture(self) -> Image.Image:
+        return Image.fromarray((self.read() * 255.0).astype(np.uint8), "L").convert("RGB")

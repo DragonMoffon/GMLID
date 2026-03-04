@@ -52,6 +52,13 @@ def get_uv_byte_data():
     )
 
 
+def get_fullscreen_geometry(ctx: ArcadeContext):
+    return ctx.geometry(
+        [gl.BufferDescription(ctx.buffer(data=get_uv_byte_data()), "4f", ["in_coordinate"])],
+        mode=gl.TRIANGLE_STRIP,
+    )
+
+
 LIGHT_SPEED_m = 299_792_458
 LIGHT_SPEED_km = 299_792.458
 LIGHT_SPEED_au = 0.0020039888041
