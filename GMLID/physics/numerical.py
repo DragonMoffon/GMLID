@@ -8,8 +8,11 @@ from arcade import get_window, ArcadeContext
 import arcade.gl as gl
 
 from GMLID.util import get_fullscreen_geometry, get_glsl, get_symmetric_geometry
+from GMLID.logging import get_logger
 
 from .system import System
+
+logger = get_logger("physics.numerical")
 
 
 class IRSDeflectionMap:
@@ -158,6 +161,7 @@ class IRSHistogram:
         self._output_size: tuple[int, int] = output_size
         self._lens_size: tuple[int, int] = lens_size if lens_size is not None else output_size
         self._ray_count: int = count
+        self._iterations: int = 0
         self._delay: float | None = delay
 
         self._ctx: ArcadeContext
@@ -212,12 +216,17 @@ class IRSHistogram:
     def pixel_height(self) -> int:
         return self._output_size[1]
 
+    @property
+    def iterations(self) -> int:
+        return self._iterations
+
     def update_system(self, system: System):
         self.initialise()
         self._system = system
         self._deflection_map.update_system(system)
         self._deflection_map.generate()
 
+        self._iterations = 0
         self._ray_frame.clear()
 
     def step(self):
@@ -231,6 +240,8 @@ class IRSHistogram:
             self._ray_geometry.render(self._ray_program)
 
         self._ctx.disable(gl.BLEND)
+        self._iterations += 1
+        logger.debug("IRSHistogram finished single step. [Total Iterations = %i]", self._iterations)
 
     def generate(self, iterations: int = 1000, flush: bool = False):
         self.initialise()
@@ -243,15 +254,20 @@ class IRSHistogram:
 
         with self._ray_frame.activate():
             self._deflection_map.deflection_map.use()
-            for _ in range(iterations):
+            for i in range(iterations):
                 self._ray_program["seed"] = random()
                 self._ray_geometry.render(self._ray_program)
                 if self._delay is None:
                     self._ctx.finish()
                 elif self._delay:
                     sleep(self._delay)
+                self._iterations += 1
+                logger.debug(
+                    f"IRSHistogram generation step {i} ({100 * (i + 1) / iterations:.1f}%) [Total Iterations = {self._iterations}]"
+                )
 
         self._ctx.disable(gl.BLEND)
+        logger.debug(f"IRSHistogram finished generation. [Total Iterations = {self._iterations}]")
 
     def flush(self):
         self._ray_frame.clear()

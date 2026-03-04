@@ -1,6 +1,10 @@
 import numpy as np
 
+from GMLID.logging import get_logger
+
 from .system import System
+
+logger = get_logger("physics.analytical")
 
 
 def get_amplification_at_position(system: System, location: tuple[float, float]) -> float:
@@ -16,13 +20,17 @@ def get_amplification_at_position(system: System, location: tuple[float, float])
         return one_lens_amplificiation(system, location)
     elif count == 2:
         return two_lens_amplification(system, location)
+    logger.error(
+        f"No analytical amplification for a {count} lens system. Use GMLID.physics.numerical instead"
+    )
     raise ValueError(
-        f"No analytical solution for a {count} lens system. Use GMLID.physics.numerical instead"
+        f"No analytical amplification for a {count} lens system. Use GMLID.physics.numerical instead"
     )
 
 
 def one_lens_amplificiation(system: System, location: tuple[float, float]) -> float:
     if len(system.lenses) != 1:
+        logger.error("This amplification solution only works for one lens")
         raise ValueError("This amplification solution only works for one lens")
 
     # Given there is only one lens, we can assume it will be centered at (0, 0)
@@ -43,6 +51,7 @@ def one_lens_amplificiation(system: System, location: tuple[float, float]) -> fl
 
 def two_lens_amplification(system: System, location: tuple[float, float]) -> float:
     if len(system.lenses) != 2:
+        logger.error("This amplification solution only works for one lens")
         raise ValueError("This amplification solution only works for two lenses")
 
     return 0.0
@@ -58,19 +67,26 @@ def get_critical_curves(system: System, count: int) -> np.ndarray:
         return one_lens_critical_curves(system, count)
     elif lens_count == 2:
         return two_lens_critical_curves(system, count)
+    logger.error(
+        f"No analytical solutions for a {lens_count} lens system. Use GMLID.physics.numerical instead"
+    )
     raise ValueError(
-        f"No analytical solution for a {lens_count} lens system. Use GMLID.physics.numerical instead"
+        f"No analytical solutions for a {lens_count} lens system. Use GMLID.physics.numerical instead"
     )
 
 
 def one_lens_critical_curves(system: System, count: int) -> np.ndarray:
+    if len(system.lenses) != 1:
+        logger.error("This critical curve solution only works for one lens")
+        raise ValueError("This critical curve solution only works for one lens")
     angles = np.linspace(0.0, 2.0 * np.pi, count, endpoint=False)
     return np.asarray((np.cos(angles), np.sin(angles))).transpose(1, 0)
 
 
 def two_lens_critical_curves(system: System, count: int) -> np.ndarray:
     if len(system.lenses) != 2:
-        raise ValueError("This amplification solution only works for two lenses")
+        logger.error("This critical curve solution only works for two lenses")
+        raise ValueError("This critical curve solution only works for two lenses")
 
     l1, l2 = system.lenses
 

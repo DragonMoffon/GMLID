@@ -12,6 +12,9 @@ from typing import Generator, Iterable, NamedTuple, Self
 from math import tan
 
 from GMLID.util import calculate_einstein_angle, pc_to_au
+from GMLID.logging import get_logger
+
+logger = get_logger("physics.system")
 
 
 class Lens(NamedTuple):
@@ -47,6 +50,9 @@ class System(NamedTuple):
         Create a lens system, and precalculate values required in calculations.
         """
         if source_distance <= lens_distance:
+            logger.critical(
+                "The distance to the source must be strictly greater than the distance to the lens"
+            )
             raise ValueError(
                 "The distance to the source must be strictly greater than the distance to the lens"
             )
@@ -61,6 +67,9 @@ class System(NamedTuple):
             com_x += lens.x * lens.m
             com_y += lens.y * lens.m
         if mass <= 0.0:
+            logger.critical(
+                f"total system mass ({mass}) is invalid. Ensure all lenses have mass, and none are negative."
+            )
             raise ValueError(
                 f"total system mass ({mass}) is invalid. Ensure all lenses have mass, and none are negative."
             )

@@ -7,6 +7,10 @@ import arcade.gl as gl
 
 import GMLID.glsl as glsl_module
 
+from GMLID.logging import get_logger
+
+logger = get_logger("util")
+
 
 def get_glsl(name: str) -> Path:
     with path(glsl_module, f"{name}.glsl") as pth:
@@ -79,6 +83,9 @@ EINSTEIN_FACTOR = 1.9142290343 * 10 ** (-13)
 
 def calculate_einstein_angle(mass: float, lens: float, source: float) -> float:
     if lens <= 0 or source <= lens:
+        logger.critical(
+            "lens or source plane distance is invalid and the einstein angle cannot be calculated"
+        )
         raise ValueError(
             "lens or source plane distance is invalid and the einstein angle cannot be calculated"
         )

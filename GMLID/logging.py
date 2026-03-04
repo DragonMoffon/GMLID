@@ -4,9 +4,10 @@ _setup: bool = False
 
 
 def setup_logging(
-    file_level: int = logging.DEBUG,
+    file_level: int = logging.WARNING,
     stream_level: int = logging.DEBUG,
     filename: str = "gmlid.log",
+    include_stream: bool = True,
 ):
     # Early exit is setup already called
     global _setup
@@ -44,9 +45,14 @@ def setup_logging(
     file_handler.setFormatter(file_formatter)
 
     # Setup listener for non-blocking logging
-    listener = logging.handlers.QueueListener(
-        log_queue, file_handler, stream_handler, respect_handler_level=True
-    )
+    if include_stream:
+        listener = logging.handlers.QueueListener(
+            log_queue, file_handler, stream_handler, respect_handler_level=True
+        )
+    else:
+        listener = logging.handlers.QueueListener(
+            log_queue, file_handler, respect_handler_level=True
+        )
 
     # Create parent logger and set level to DEBUG
     logger = logging.getLogger("GMLID")
