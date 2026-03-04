@@ -7,7 +7,7 @@ from .system import System
 logger = get_logger("physics.analytical")
 
 
-def get_amplification_at_position(system: System, location: tuple[float, float]) -> float:
+def get_amplification_at_position(system: System, locations: np.ndarray) -> np.ndarray:
     """
     Get the analytical amplification at a location for a one or two lens system.
 
@@ -17,9 +17,9 @@ def get_amplification_at_position(system: System, location: tuple[float, float])
     """
     count = len(system.lenses)
     if count == 1:
-        return one_lens_amplificiation(system, location)
+        return one_lens_amplificiation(system, locations)
     elif count == 2:
-        return two_lens_amplification(system, location)
+        return two_lens_amplification(system, locations)
     logger.error(
         f"No analytical amplification for a {count} lens system. Use GMLID.physics.numerical instead"
     )
@@ -28,17 +28,13 @@ def get_amplification_at_position(system: System, location: tuple[float, float])
     )
 
 
-def one_lens_amplificiation(system: System, location: tuple[float, float]) -> float:
+def one_lens_amplificiation(system: System, locations: np.ndarray) -> np.ndarray:
     if len(system.lenses) != 1:
         logger.error("This amplification solution only works for one lens")
         raise ValueError("This amplification solution only works for one lens")
 
     # Given there is only one lens, we can assume it will be centered at (0, 0)
-    separation = (location[0] ** 2.0 + location[1] ** 2.0) ** 0.5
-
-    if separation == 0.0:
-        # python does not handle division by zero
-        return float("inf")
+    separation = (locations[:, 0] ** 2.0 + locations[:, 1] ** 2.0) ** 0.5
 
     # The impact parameter (mu)
     # classically the deflection is divided by the Einstein angle,
@@ -49,13 +45,13 @@ def one_lens_amplificiation(system: System, location: tuple[float, float]) -> fl
     return (mu**2 + 2) / (mu * (mu**2 + 4) ** 0.5)
 
 
-def two_lens_amplification(system: System, location: tuple[float, float]) -> float:
+def two_lens_amplification(system: System, locations: np.ndarray) -> np.ndarray:
     if len(system.lenses) != 2:
         logger.error("This amplification solution only works for one lens")
         raise ValueError("This amplification solution only works for two lenses")
 
     logger.warning("two_lens_amplification is currently unimplemented.")
-    return 0.0
+    return np.asarray([0.0])
 
 
 def get_critical_curves(system: System, count: int) -> np.ndarray:
@@ -99,13 +95,16 @@ def two_lens_critical_curves(system: System, count: int) -> np.ndarray:
     p1 = l1.x + l1.y * 1j
     p2 = l2.x + l2.y * 1j
 
+    # calculate normalised separation
+    sep = (p2 - p1) / system.lens_radius
+
     # normalise positions
-    z1 = (p1 - p2) * m1 / system.lens_radius
-    z2 = (p2 - p1) * m2 / system.lens_radius
+    z1 = -sep * m1
+    z2 = sep * m2
 
     # calculate center of mass
-    cx = (l2.x - l1.x) / system.lens_radius * (1 - 2 * m1)
-    cy = (l2.y - l1.y) / system.lens_radius * (1 - 2 * m1)
+    cx = np.real(sep) * (1 - 2 * m1)
+    cy = np.imag(sep) * (1 - 2 * m1)
 
     # generate angles for calculations
     phi = np.linspace(0.0j, 2j * np.pi, count)
