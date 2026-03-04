@@ -11,7 +11,7 @@ mass fraction and Einstein angle.
 from typing import Generator, Iterable, NamedTuple, Self
 from math import tan
 
-from GMLID.util import calculate_einstein_angle, pc_to_au
+from GMLID.physics.util import calculate_einstein_angle, pc_to_au
 from GMLID.logging import get_logger
 
 logger = get_logger("physics.system")
