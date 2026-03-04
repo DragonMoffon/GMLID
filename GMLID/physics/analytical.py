@@ -54,6 +54,7 @@ def two_lens_amplification(system: System, location: tuple[float, float]) -> flo
         logger.error("This amplification solution only works for one lens")
         raise ValueError("This amplification solution only works for two lenses")
 
+    logger.warning("two_lens_amplification is currently unimplemented.")
     return 0.0
 
 
@@ -135,12 +136,9 @@ def two_lens_critical_curves(system: System, count: int) -> np.ndarray:
     return critical_points
 
 
-def apply_lens_equation(system: System, locations: np.ndarray, use_com: bool = True) -> np.ndarray:
-    c_x = system.com_x if use_com else system.lenses[0].x
-    c_y = system.com_y if use_com else system.lenses[0].y
-
-    Dl = system.lens_distance
-    Ds = system.source_distance
+def apply_lens_equation(system: System, locations: np.ndarray) -> np.ndarray:
+    c_x = system.com_x
+    c_y = system.com_y
 
     M = system.mass
 
