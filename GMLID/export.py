@@ -18,7 +18,7 @@ finally:
     import struct
 
 
-def convert_to_fits():
+def convert_to_fits(location: Path, name: str):
     if _USE_FITS is False:
         logger.exception("Cannot convert the raw to fits as astropy failed to import")
         return None
@@ -49,17 +49,16 @@ def _dump_histogram_raw(path: Path, histogram: IRSHistogram):
         system.source_distance,
         *(val for lens in system.lenses for val in lens),
     )
-    data = histogram.read()[::-1, :].tobytes()
+    data = histogram.histogram.read()
 
-    print(header + info)
     with open(path, "wb") as fp:
         fp.write(header + info + data)
 
 
-def dump_histogram(path: Path, histogram: IRSHistogram):
+def dump_histogram(location: Path, name: str, histogram: IRSHistogram):
     if _USE_FITS:
-        return _dump_histogram_fits(path, histogram)
-    return _dump_histogram_raw(path, histogram)
+        return _dump_histogram_fits(location / f"{name}.fits", histogram)
+    return _dump_histogram_raw(location / f"{name}.histogram", histogram)
 
 
 def _load_histogram_fits(path: Path) -> IRSHistogram | None: ...
@@ -90,7 +89,7 @@ def _load_histogram_raw(path: Path) -> IRSHistogram | None:
     return histogram
 
 
-def load_histogram(path: Path) -> IRSHistogram | None:
+def load_histogram(location: Path, name: str) -> IRSHistogram | None:
     if _USE_FITS:
-        return _load_histogram_fits(path)
-    return _load_histogram_raw(path)
+        return _load_histogram_fits(location / f"{name}.fits")
+    return _load_histogram_raw(location / f"{name}.histogram")
