@@ -1,6 +1,7 @@
 from struct import pack
 from random import random
 from time import sleep
+from collections.abc import Buffer
 
 from PIL import Image
 import numpy as np
@@ -26,7 +27,14 @@ class IRSDeflectionMap:
     must explicitly call `IRSDeflectionMap.generate()`.
     """
 
-    def __init__(self, system: System, size: tuple[int, int], lazy: bool = False) -> None:
+    def __init__(
+        self,
+        system: System,
+        size: tuple[int, int],
+        *,
+        lazy: bool = False,
+        data: Buffer | None = None,
+    ) -> None:
         self._system: System = system
         self._size: tuple[int, int] = size
 
@@ -39,12 +47,11 @@ class IRSDeflectionMap:
         self._render_program: gl.Program
         self._render_frame: gl.Framebuffer
 
-        self._stale: bool = False
         self._initialised: bool = False
-        if not lazy:
-            self.initialise()
+        if not lazy or data is not None:
+            self.initialise(data=data)
 
-    def initialise(self, force: bool = False):
+    def initialise(self, /, force: bool = False, data: Buffer | None = None):
         if self._initialised and not force:
             return
 
@@ -61,6 +68,7 @@ class IRSDeflectionMap:
             self._size,
             components=2,
             dtype="f4",
+            data=data,
             wrap_x=gl.CLAMP_TO_EDGE,
             wrap_y=gl.CLAMP_TO_EDGE,
             filter=(gl.LINEAR, gl.LINEAR),
@@ -108,6 +116,10 @@ class IRSDeflectionMap:
             self._lens_block.bind_to_storage_buffer()
             self._render_geometry.render(self._render_program)
 
+    def use(self, unit: int = 0):
+        self.initialise()
+        self._lens_image.use(unit)
+
     def read(self) -> np.ndarray:
         data = self._lens_image.read()
         w, h = self._size
@@ -150,23 +162,23 @@ class IRSHistogram:
 
     def __init__(
         self,
-        system: System,
         count: int,
-        output_size: tuple[int, int],
-        lens_size: tuple[int, int] | None = None,
+        size: tuple[int, int],
+        deflection_map: IRSDeflectionMap,
+        *,
         delay: float | None = None,
         lazy: bool = False,
+        data: Buffer | None = None,
     ) -> None:
-        self._system: System = system
-        self._output_size: tuple[int, int] = output_size
-        self._lens_size: tuple[int, int] = lens_size if lens_size is not None else output_size
+        self._size: tuple[int, int] = size
         self._ray_count: int = count
-        self._iterations: int = 0
         self._delay: float | None = delay
+
+        self._iterations: int = 0
 
         self._ctx: ArcadeContext
 
-        self._deflection_map: IRSDeflectionMap
+        self._deflection_map: IRSDeflectionMap = deflection_map
         self._histogram: gl.Texture2D
 
         self._ray_geometry: gl.Geometry
@@ -174,24 +186,22 @@ class IRSHistogram:
         self._ray_frame: gl.Framebuffer
 
         self._initialised: bool = False
-        self._stale: bool = False
-        if not lazy:
+        if not lazy or data is not None:
             self.initialise()
 
-    def initialise(self, force: bool = True):
+    def initialise(self, /, force: bool = True, data: Buffer | None = None):
         if self._initialised and not force:
             return
 
         self._ctx = ctx = get_window().ctx
+        self._histogram = ctx.texture(self._size, components=1, dtype="f4", data=data)
 
-        self._deflection_map = IRSDeflectionMap(self._system, self._lens_size)
-        self._deflection_map.generate()
-        self._histogram = ctx.texture(self._output_size, components=1, dtype="f4")
-
-        # Evenly space x rays between 0.0 and 1.0 (inclusive)/
-        # On th GPU these are used to find the deflection and final location
+        # Evenly space x rays between 0.0 and 1.0 (exclusive)
+        # This places the ray's at the center of pixels if the ray count matches the size
+        # On th GPU these use the deflection to find the final location
         # in the output histogram.
-        x = np.linspace(0.0, 1.0, self._ray_count, dtype=np.float32)
+        count = self._ray_count
+        x = np.linspace(0.5 / count, 1.0 - 0.5 / count, self._ray_count, dtype=np.float32)
         xy, yx = np.meshgrid(x, x)
         rays = np.asarray((xy, yx)).transpose((1, 2, 0))  # create 2d array of x,y positions
         self._ray_geometry = ctx.geometry(
@@ -202,6 +212,8 @@ class IRSHistogram:
         self._ray_program = ctx.load_program(
             vertex_shader=get_glsl("IRS_histogram_vs"), fragment_shader=get_glsl("IRS_histogram_fs")
         )
+        self._ray_program["shift"] = (1.0 / count, 1.0 / count)
+        self._ray_program["scale"] = 0.5, 0.5
         self._ray_frame = ctx.framebuffer(color_attachments=(self._histogram))
 
     @property
@@ -210,32 +222,33 @@ class IRSHistogram:
 
     @property
     def pixel_width(self) -> int:
-        return self._output_size[0]
+        return self._size[0]
 
     @property
     def pixel_height(self) -> int:
-        return self._output_size[1]
+        return self._size[1]
 
     @property
     def iterations(self) -> int:
         return self._iterations
 
-    def update_system(self, system: System):
-        self.initialise()
-        self._system = system
-        self._deflection_map.update_system(system)
-        self._deflection_map.generate()
-
+    def clear(self):
         self._iterations = 0
         self._ray_frame.clear()
 
     def step(self):
+        # Set the blend mode to additive so it counts the number of rays that
+        # hit each pixel
         self._ctx.blend_func = gl.BLEND_ADDITIVE
         self._ctx.enable(gl.BLEND)
-        self._ctx.point_size = 3
+
+        # Set the ray size to 1 pixel square
+        self._ctx.point_size = 1
 
         with self._ray_frame.activate():
-            self._deflection_map.deflection_map.use()
+            # Bind the deflection map to be used by the program, and set the random
+            # seed used to adjust the ray positions
+            self._deflection_map.use()
             self._ray_program["seed"] = random()
             self._ray_geometry.render(self._ray_program)
 
@@ -263,7 +276,7 @@ class IRSHistogram:
                     sleep(self._delay)
                 self._iterations += 1
                 logger.debug(
-                    f"IRSHistogram generation step {i} ({100 * (i + 1) / iterations:.1f}%) [Total Iterations = {self._iterations}]"
+                    f"IRSHistogram generation step {i + 1} ({100 * (i + 1) / iterations:.1f}%) [Total Iterations = {self._iterations}]"
                 )
 
         self._ctx.disable(gl.BLEND)
@@ -274,7 +287,7 @@ class IRSHistogram:
 
     def read(self) -> np.ndarray:
         data = self._histogram.read()
-        w, h = self._output_size
+        w, h = self._size
         array = np.frombuffer(data, dtype=np.float32, count=w * h).reshape((w, h))[::-1, :]
         cap = np.max(array)
         return array / cap
