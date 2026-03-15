@@ -1,7 +1,9 @@
 from pathlib import Path
 
+from matplotlib.pyplot import hist
+
 from GMLID.logging import get_logger
-from GMLID.physics.numerical import IRSHistogram
+from GMLID.physics.numerical import IRSDeflectionMap, IRSHistogram
 from GMLID.physics.system import Lens, System
 
 logger = get_logger("export")
@@ -28,31 +30,54 @@ def _dump_histogram_fits(path: Path, histogram: IRSHistogram):
     pass
 
 
-_HISTOGRAM_HEADERSIZE = struct.calcsize(">6q2d")
-_LENS_SIZE = struct.calcsize(">3d")
+_SYSTEM_INFO_SIZE = struct.calcsize("q2d")
+_LENS_SIZE = struct.calcsize("3d")
+
+_DEFLECTION_SIZE = struct.calcsize("2q")
+_HISTOGRAM_SIZE = struct.calcsize("4qd")  # ray count, iterations, size, delay
 
 
 def _dump_histogram_raw(path: Path, histogram: IRSHistogram):
-    system = histogram._system
+    header = b"type histogram"
+
+    deflection_map = histogram._deflection_map
+    system = deflection_map._system
     count = len(system.lenses)
 
-    header = b"type histogram"
-    info = struct.pack(
-        f">6q2d{3 * count}d",
-        histogram._deflection_map._size[0],
-        histogram._deflection_map._size[1],
-        histogram.pixel_width,
-        histogram.pixel_height,
-        histogram._ray_count,
+    system_size = _SYSTEM_INFO_SIZE + count * _LENS_SIZE
+    system_info = b"system          " + struct.pack(
+        f">qq2d{3 * count}d",
+        system_size,
         count,
         system.lens_distance,
         system.source_distance,
         *(val for lens in system.lenses for val in lens),
     )
-    data = histogram.histogram.read()
+
+    deflection_size = _DEFLECTION_SIZE + 8 * deflection_map.width * deflection_map.height
+    deflection_info = (
+        b"deflection      "
+        + struct.pack(">3q", deflection_size, deflection_map.width, deflection_map.height)
+        + deflection_map.deflection_map.read()
+    )
+
+    histogram_size = _HISTOGRAM_SIZE + 4 * histogram.width * histogram.height
+    histogram_info = (
+        b"histogram       "
+        + struct.pack(
+            ">5qd",
+            histogram_size,
+            histogram.ray_count,
+            histogram.iterations,
+            histogram.width,
+            histogram.height,
+            float("nan") if histogram.delay is None else histogram.delay,
+        )
+        + histogram.histogram.read()
+    )
 
     with open(path, "wb") as fp:
-        fp.write(header + info + data)
+        fp.write(header + system_info + deflection_info + histogram_info)
 
 
 def dump_histogram(location: Path, name: str, histogram: IRSHistogram):
@@ -66,26 +91,43 @@ def _load_histogram_fits(path: Path) -> IRSHistogram | None: ...
 
 def _load_histogram_raw(path: Path) -> IRSHistogram | None:
     with open(path, "rb") as fp:
-        byte_data = fp.read()
+        data = fp.read()
 
-    if byte_data[:14] != b"type histogram":
+    if data[:14] != b"type histogram":
         logger.critical(f"{path} is not a valid histogram file")
         return None
 
-    deflection_w, deflection_h, pixel_w, pixel_h, ray_count, count, Dl, Ds = struct.unpack(
-        ">6q2d", byte_data[14 : 14 + _HISTOGRAM_HEADERSIZE]
-    )
-    lenses = struct.unpack(
-        f">{3 * count}d",
-        byte_data[14 + _HISTOGRAM_HEADERSIZE : 14 + _HISTOGRAM_HEADERSIZE + count * _LENS_SIZE],
-    )
-    data = byte_data[14 + _HISTOGRAM_HEADERSIZE + count * _LENS_SIZE :]
+    def _load_raw_block(start: int) -> tuple[str, bytes, int]:
+        block_type = str(data[start : start + 16]).strip()
+        block_size = int.from_bytes(data[start + 16 : start + 24])
+        block_data = data[start + 24 : start + 24 + block_size]
+        return block_type, block_data, start + 24 + block_size
 
-    system = System.create(
-        Dl, Ds, (Lens(lenses[3 * i], lenses[3 * i + 1], lenses[3 * i + 2]) for i in range(count))
+    _, system_data, pointer = _load_raw_block(14)
+    count, lens_dist, source_dist = struct.unpack(">qdd", system_data[:24])
+    l_data = struct.unpack(f">{3 * count}d", system_data[24:])
+    lenses = (Lens(l_data[3 * i], l_data[3 * i + 1], l_data[3 * i + 2]) for i in range(count))
+
+    system = System.create(lens_dist, source_dist, lenses)
+
+    _, deflection_data, pointer = _load_raw_block(pointer)
+
+    d_width = int.from_bytes(deflection_data[0:8])
+    d_height = int.from_bytes(deflection_data[8:16])
+    deflection = IRSDeflectionMap(system, (d_width, d_height), data=deflection_data[16:])
+
+    _, histogram_data, pointer = _load_raw_block(pointer)
+    h_count, h_iter, h_width, h_height, h_delay = struct.unpack(">4qd", histogram_data[0:40])
+    h_delay = None if h_delay == float("nan") else h_delay
+    histogram = IRSHistogram(
+        h_count,
+        (h_width, h_height),
+        deflection,
+        delay=h_delay,
+        iterations=h_iter,
+        data=histogram_data[40:],
     )
-    histogram = IRSHistogram(system, ray_count, (pixel_w, pixel_h), (deflection_w, deflection_h))
-    histogram.histogram.write(data)
+
     return histogram
 
 

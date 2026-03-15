@@ -88,6 +88,14 @@ class IRSDeflectionMap:
         self.initialise()
         return self._lens_image
 
+    @property
+    def width(self) -> int:
+        return self._size[0]
+
+    @property
+    def height(self) -> int:
+        return self._size[1]
+
     def _update_lens_block(self):
         count = len(self._system.lenses)
         self._lens_block.write(pack(f"2i {count * 4}f", count, 0, *self._system.pack_lenses()))
@@ -168,13 +176,14 @@ class IRSHistogram:
         *,
         delay: float | None = None,
         lazy: bool = False,
+        iterations: int = 0,
         data: Buffer | None = None,
     ) -> None:
         self._size: tuple[int, int] = size
         self._ray_count: int = count
         self._delay: float | None = delay
 
-        self._iterations: int = 0
+        self._iterations: int = iterations
 
         self._ctx: ArcadeContext
 
@@ -187,7 +196,7 @@ class IRSHistogram:
 
         self._initialised: bool = False
         if not lazy or data is not None:
-            self.initialise()
+            self.initialise(data=data)
 
     def initialise(self, /, force: bool = True, data: Buffer | None = None):
         if self._initialised and not force:
@@ -221,16 +230,24 @@ class IRSHistogram:
         return self._histogram
 
     @property
-    def pixel_width(self) -> int:
+    def ray_count(self) -> int:
+        return self._ray_count
+
+    @property
+    def width(self) -> int:
         return self._size[0]
 
     @property
-    def pixel_height(self) -> int:
+    def height(self) -> int:
         return self._size[1]
 
     @property
     def iterations(self) -> int:
         return self._iterations
+
+    @property
+    def delay(self) -> float | None:
+        return self._delay
 
     def clear(self):
         self._iterations = 0
@@ -295,6 +312,9 @@ class IRSHistogram:
     def capture(self) -> Image.Image:
         return Image.fromarray((self.read() * 255.0).astype(np.uint8), "L").convert("RGB")
 
+    def __str__(self) -> str:
+        return f"Inverse Ray Shooting Histogram<Rays:{self.ray_count**2}, Iterations:{self._iterations}, Size=({self.width},{self.height})>"
+
 
 class IRSCriticalMap:
     """
@@ -322,7 +342,7 @@ class IRSCriticalMap:
         ctx = get_window().ctx
 
         self._critical_map = ctx.texture(
-            (self._histogram.pixel_width, self._histogram.pixel_height), components=1, dtype="f4"
+            (self._histogram.width, self._histogram.height), components=1, dtype="f4"
         )
 
         self._render_frame = ctx.framebuffer(color_attachments=self._critical_map)
