@@ -1,5 +1,8 @@
 from pathlib import Path
 
+from tomli_w import dump as dump_toml
+from tomllib import load as load_toml
+
 from GMLID.logging import get_logger
 from GMLID.physics.numerical import IRSDeflectionMap, IRSHistogram
 from GMLID.physics.system import Lens, System
@@ -133,3 +136,34 @@ def load_histogram(location: Path, name: str) -> IRSHistogram | None:
     if _USE_FITS:
         return _load_histogram_fits(location / f"{name}.fits")
     return _load_histogram_raw(location / f"{name}.histogram")
+
+
+def dump_system(location: Path | str, system: System):
+    data = {
+        "lens_distance": system.lens_distance,
+        "source_distance": system.source_distance,
+        "lenses": [{"mass": lens.m, "x": lens.x, "y": lens.y} for lens in system.lenses],
+        "calculated": {
+            "mass": system.mass,
+            "com": (system.com_x, system.com_y),
+            "einstein_angle": system.einstein_angle,
+            "lens_radius": system.lens_radius,
+            "source_radius": system.source_radius,
+        },
+    }
+
+    with open(location, "wb") as fp:
+        dump_toml(data, fp)
+
+
+def load_system(location: Path | str) -> System | None:
+    with open(location, "rb") as fp:
+        data = load_toml(fp)
+
+    if "lens_distance" not in data or "source_distance" not in data:
+        logger.exception("Missing required Lens and Source Distance to create System")
+        return None
+
+    lenses = (Lens(l["mass"], l["x"], l["y"]) for l in data.get("lenses", ()))
+
+    return System.create(data["lens_distance"], data["source_distance"], lenses)

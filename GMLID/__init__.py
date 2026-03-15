@@ -11,7 +11,7 @@ from GMLID.physics.analytical import (
 from GMLID.physics.numerical import IRSDeflectionMap, IRSHistogram
 
 import GMLID.io as io
-from GMLID.io import dump_histogram, load_histogram
+from GMLID.io import dump_histogram, load_histogram, dump_system, load_system
 
 __all__ = (
     "setup_logging",
@@ -28,4 +28,6 @@ __all__ = (
     "io",
     "dump_histogram",
     "load_histogram",
+    "dump_system",
+    "load_system",
 )
