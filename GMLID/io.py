@@ -1,12 +1,10 @@
 from pathlib import Path
 
-from matplotlib.pyplot import hist
-
 from GMLID.logging import get_logger
 from GMLID.physics.numerical import IRSDeflectionMap, IRSHistogram
 from GMLID.physics.system import Lens, System
 
-logger = get_logger("export")
+logger = get_logger("io")
 try:
     from astropy.io import fits
 

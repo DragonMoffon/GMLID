@@ -10,6 +10,9 @@ from GMLID.physics.analytical import (
 )
 from GMLID.physics.numerical import IRSDeflectionMap, IRSHistogram
 
+import GMLID.io as io
+from GMLID.io import dump_histogram, load_histogram
+
 __all__ = (
     "setup_logging",
     "get_logger",
@@ -22,4 +25,7 @@ __all__ = (
     "apply_lens_equation",
     "IRSDeflectionMap",
     "IRSHistogram",
+    "io",
+    "dump_histogram",
+    "load_histogram",
 )

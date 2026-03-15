@@ -5,7 +5,7 @@ from arcade import Window
 import numpy as np
 
 from GMLID.physics import System, Lens, IRSDeflectionMap, IRSHistogram
-from GMLID.export import _dump_histogram_raw
+from GMLID.io import _dump_histogram_raw
 from GMLID.logging import get_logger
 
 logger = get_logger("generation")

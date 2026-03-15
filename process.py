@@ -3,7 +3,7 @@ from pathlib import Path
 from arcade import Window
 import matplotlib.pyplot as plt
 
-from GMLID.export import _load_histogram_raw
+from GMLID.io import _load_histogram_raw
 
 
 win = Window()
