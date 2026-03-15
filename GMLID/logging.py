@@ -4,7 +4,7 @@ _setup: bool = False
 
 
 def setup_logging(
-    file_level: int = logging.WARNING,
+    file_level: int = logging.INFO,
     stream_level: int = logging.DEBUG,
     filename: str = "gmlid.log",
     include_stream: bool = True,
