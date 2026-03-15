@@ -66,7 +66,7 @@ try:
 
         _dump_histogram_raw(Path(f"System{idx}.histogram"), histogram)
         logger.info("Dumped Histogram")
-except KeyboardInterrupt as e:
+except KeyboardInterrupt:
     logger.warning("Interrupted Code Execution", exc_info=True)
 except Exception as e:
     logger.exception(e)
