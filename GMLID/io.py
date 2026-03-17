@@ -35,7 +35,7 @@ _SYSTEM_INFO_SIZE = struct.calcsize("q2d")
 _LENS_SIZE = struct.calcsize("3d")
 
 _DEFLECTION_SIZE = struct.calcsize("2q")
-_HISTOGRAM_SIZE = struct.calcsize("4qd")  # ray count, iterations, size, delay
+_HISTOGRAM_SIZE = struct.calcsize("4q3d")  # ray count, iterations, size, viewport [x, y], delay
 
 
 def _dump_histogram_raw(path: Path, histogram: IRSHistogram):
@@ -66,12 +66,14 @@ def _dump_histogram_raw(path: Path, histogram: IRSHistogram):
     histogram_info = (
         b"histogram       "
         + struct.pack(
-            ">5qd",
+            ">5q3d",
             histogram_size,
             histogram.ray_count,
             histogram.iterations,
             histogram.width,
             histogram.height,
+            histogram.viewport_x,
+            histogram.viewport_y,
             float("nan") if histogram.delay is None else histogram.delay,
         )
         + histogram.histogram.read()
@@ -105,7 +107,7 @@ def _load_histogram_raw(path: Path) -> IRSHistogram | None:
         return block_type, block_data, start + 24 + block_size
 
     _, system_data, pointer = _load_raw_block(14)
-    count, lens_dist, source_dist = struct.unpack(">qdd", system_data[:24])
+    count, lens_dist, source_dist = struct.unpack(">qddd", system_data[:24])
     l_data = struct.unpack(f">{3 * count}d", system_data[24:])
     lenses = (Lens(l_data[3 * i], l_data[3 * i + 1], l_data[3 * i + 2]) for i in range(count))
 
@@ -118,15 +120,18 @@ def _load_histogram_raw(path: Path) -> IRSHistogram | None:
     deflection = IRSDeflectionMap(system, (d_width, d_height), data=deflection_data[16:])
 
     _, histogram_data, pointer = _load_raw_block(pointer)
-    h_count, h_iter, h_width, h_height, h_delay = struct.unpack(">4qd", histogram_data[0:40])
+    h_count, h_iter, h_width, h_height, h_v_x, h_v_y, h_delay = struct.unpack(
+        ">4q3d", histogram_data[0:56]
+    )
     h_delay = None if h_delay == float("nan") else h_delay
     histogram = IRSHistogram(
         h_count,
         (h_width, h_height),
         deflection,
+        viewport=(h_v_x, h_v_y),
         delay=h_delay,
         iterations=h_iter,
-        data=histogram_data[40:],
+        data=histogram_data[56:],
     )
 
     return histogram
@@ -164,6 +169,6 @@ def load_system(location: Path | str) -> System | None:
         logger.exception("Missing required Lens and Source Distance to create System")
         return None
 
-    lenses = (Lens(l["mass"], l["x"], l["y"]) for l in data.get("lenses", ()))
+    lenses = (Lens(lens["mass"], lens["x"], lens["y"]) for lens in data.get("lenses", ()))
 
     return System.create(data["lens_distance"], data["source_distance"], lenses)
