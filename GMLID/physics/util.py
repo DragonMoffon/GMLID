@@ -10,7 +10,9 @@ LIGHT_SPEED_pc = 9.71561e-9
 pc_to_au = 206264.80624538
 au_to_pc = 1.0 / pc_to_au
 au_to_m = 1.496e11
-m_to_au = 1 / au_to_m
+Sr_to_au = 4.65047e-3
+au_to_Sr = 1.0 / Sr_to_au
+m_to_au = 1.0 / au_to_m
 pc_to_m = 3.08567758128e16
 
 GRAVITATIONAL_CONSTANT = 6.6743e-11

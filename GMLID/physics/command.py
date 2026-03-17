@@ -12,3 +12,4 @@ def parse_args(args: Sequence[str] | None = None):
     parser.add_argument("--launch", action="store_true", help="Launch the real-time demo")
 
     arguments = parser.parse_args(args)
+    return arguments
