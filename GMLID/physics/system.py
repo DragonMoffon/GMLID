@@ -44,7 +44,7 @@ class System(NamedTuple):
         cls,
         lens_distance: float,
         source_distance: float,
-        lenses: Iterable[Lens],
+        lenses: Iterable[Lens] | Lens,
     ) -> Self:
         """
         Create a lens system, and precalculate values required in calculations.
@@ -56,7 +56,8 @@ class System(NamedTuple):
             raise ValueError(
                 "The distance to the source must be strictly greater than the distance to the lens"
             )
-        lenses = tuple(lenses)
+
+        lenses = (lenses,) if isinstance(lenses, Lens) else tuple(lenses)
         if len(lenses) == 0:
             return cls(lens_distance, source_distance, (), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
